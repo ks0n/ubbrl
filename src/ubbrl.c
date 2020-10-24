@@ -33,7 +33,7 @@ static int enable_raw_mode()
 	/* Handle newlines correctly, Disable Ctrl-S and Ctrl-Q, Disable 8th bit stripping */
 	term_mode.c_iflag &= ~(ICRNL | IXON | ISTRIP);
 
-	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubsh uses them, Disable Ctrl-V */
+	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubbrl uses them, Disable Ctrl-V */
 	term_mode.c_cflag &= ~(ICANON | ISIG | IEXTEN);
 
 	term_mode.c_cflag |= CS8; /* There are 8 bits in 1 char */
