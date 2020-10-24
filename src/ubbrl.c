@@ -1,12 +1,16 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include "charstream.h"
+#include "wordvec.h"
 
 #include "ubbrl.h"
 
 static struct termios original_terminal_configuration;
-static bool raw_mode_enabled = false;
+static bool atexit_enabled = false;
 
 /**
  * @brief Disable raw mode for the active terminal. Called automagically by `exit()`
@@ -17,7 +21,7 @@ static void disable_raw_mode()
 }
 
 /**
- * @brief Enable raw mode for the active terminal
+ * Enable raw mode for the active terminal. 1960 magic shit.
  *
  * @return 0 on success, -1 on error
  */
@@ -25,28 +29,51 @@ static int enable_raw_mode()
 {
 	tcgetattr(STDIN_FILENO, &original_terminal_configuration);
 
-	/* Register `disable_raw_mode` to be called upon exit */
-	atexit(disable_raw_mode);
-
 	struct termios term_mode = original_terminal_configuration;
 
-	/* Handle newlines correctly, Disable Ctrl-S and Ctrl-Q, Disable 8th bit stripping */
-	term_mode.c_iflag &= ~(ICRNL | IXON | ISTRIP);
+    if (!atexit_enabled) {
+        atexit(disable_raw_mode);
+        atexit_enabled = true;
+    }
 
-	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubsh uses them, Disable Ctrl-V */
-	term_mode.c_cflag &= ~(ICANON | ISIG | IEXTEN);
+	///* Handle newlines correctly, Disable Ctrl-S and Ctrl-Q, Disable 8th bit stripping */
+	//term_mode.c_iflag &= ~(IXON | ISTRIP);
 
-	term_mode.c_cflag |= CS8; /* There are 8 bits in 1 char */
-	term_mode.c_oflag &= ~(OPOST); /* Turn off post transformations */
+	///* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubbrl uses them, Disable Ctrl-V */
+	//term_mode.c_cflag &= ~(ICANON | ISIG | IEXTEN);
+
+	//term_mode.c_cflag |= CS8; /* There are 8 bits in 1 char */
+	//term_mode.c_oflag &= ~(OPOST); /* Turn off post transformations */
+
+	term_mode.c_cflag &= ~ICANON;
+	term_mode.c_lflag &= ~ISIG;
 
 	int status = tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_mode);
 
 	if (status)
 		return status;
 
-	raw_mode_enabled = true;
-
 	return 0;
+}
+
+/**
+ * Is the character a terminal escape sequence or not
+ *
+ * @return true for '\x1B', false otherwise
+ */
+static inline bool is_escape_seq(char c)
+{
+	return c == '\x1B';
+}
+
+/**
+ * Is the character the end of a terminal escape sequence or not
+ *
+ * @return true for 'm', false otherwise
+ */
+static inline bool is_escape_seq_end(char c)
+{
+	return c == 'm';
 }
 
 /**
@@ -59,21 +86,65 @@ static int enable_raw_mode()
 ssize_t term_strlen(const char *str)
 {
 	size_t len = 0;
-	while (*str++)
-		len++;
+
+	/* Old position before the escape sequence. -1 means "unset" */
+	ssize_t start_escape_pos = -1;
+
+	for (size_t i = 0; str[i]; i++) {
+		if (is_escape_seq(str[i])) {
+			start_escape_pos = i;
+		} else if (is_escape_seq_end(str[i])) {
+			start_escape_pos = -1;
+		} else if (start_escape_pos == -1) {
+			len++;
+		}
+	}
+
+	/* The escape sequence was unfinished. Do a normal strlen from there */
+	if (start_escape_pos != -1) {
+		for (size_t i = start_escape_pos; str[i]; i++)
+			len++;
+	}
 
 	return len;
 }
 
-char *ubbrl_read(char *prompt)
+enum special_chars {
+	CTRL_C = 3,
+};
+
+const char *ubbrl_read(char *prompt)
 {
-	if (!raw_mode_enabled)
-		enable_raw_mode();
+	enable_raw_mode();
 
-	size_t prompt_len = term_strlen(prompt);
+	struct wordvec *vector = wordvec_new();
+	struct charstream stream;
+	charstream_init(&stream, stdin);
 
-	if (fwrite(prompt, sizeof(*prompt), prompt_len, stdin) != prompt_len)
-		return NULL;
+	printf("%s", prompt);
 
-	return NULL;
+	while (true) {
+		char c = charstream_read(&stream);
+
+		if (c == CHARSTREAM_EOF)
+			break;
+
+		if (c == CTRL_C) {
+			wordvec_del(vector);
+			return NULL;
+		}
+
+		if (c == '\n')
+			break;
+
+		wordvec_append(vector, c);
+	}
+
+	disable_raw_mode();
+
+	char *ret_line = strdup(wordvec_chars(vector));
+
+	wordvec_del(vector);
+
+	return ret_line;
 }

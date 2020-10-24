@@ -6,16 +6,26 @@ project('ubbrl', 'c',
     'c_std=c99',
     ])
 
-inc = include_directories('include')
+add_project_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
+
+inc = include_directories(['include', 'src'])
 
 src = [
+  'src/charstream.c',
   'src/ubbrl.c',
+  'src/wordvec.c',
   ]
+
+main = [ 'src/main.c' ]
 
 library('ubbrl', src, include_directories: inc)
 
+executable('ubbrl', src, main, include_directories: inc)
+
 unit_tests_src = [
   'tests/test-ubbrl.c',
+  'tests/charstream.c',
+  'tests/wordvec.c',
   ]
 
 criterion = dependency('criterion')
