@@ -54,7 +54,7 @@ static int enable_raw_mode()
  *
  * @return true for '\x1B', false otherwise
  */
-__attribute__((__always_inline__)) static inline bool is_escape_seq(char c)
+static inline bool is_escape_seq(char c)
 {
 	return c == '\x1B';
 }
@@ -64,7 +64,7 @@ __attribute__((__always_inline__)) static inline bool is_escape_seq(char c)
  *
  * @return true for 'm', false otherwise
  */
-__attribute__((__always_inline__)) static inline bool is_escape_seq_end(char c)
+static inline bool is_escape_seq_end(char c)
 {
 	return c == 'm';
 }
@@ -85,8 +85,8 @@ ssize_t term_strlen(const char *str)
 
 	for (size_t i = 0; str[i]; i++) {
 		if (is_escape_seq(str[i])) {
-			old_iter =
-				i; /* Save the position before we try to skip anything */
+			/* Save the position before we try to skip anything */
+			old_iter = i;
 			do {
 				i++;
 
