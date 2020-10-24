@@ -33,7 +33,7 @@ static int enable_raw_mode()
 	/* Handle newlines correctly, Disable Ctrl-S and Ctrl-Q, Disable 8th bit stripping */
 	term_mode.c_iflag &= ~(ICRNL | IXON | ISTRIP);
 
-	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubsh uses them, Disable Ctrl-V */
+	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubbrl uses them, Disable Ctrl-V */
 	term_mode.c_cflag &= ~(ICANON | ISIG | IEXTEN);
 
 	term_mode.c_cflag |= CS8; /* There are 8 bits in 1 char */
@@ -50,6 +50,26 @@ static int enable_raw_mode()
 }
 
 /**
+ * Is the character a terminal escape sequence or not
+ *
+ * @return true for '\x1B', false otherwise
+ */
+static inline bool is_escape_seq(char c)
+{
+	return c == '\x1B';
+}
+
+/**
+ * Is the character the end of a terminal escape sequence or not
+ *
+ * @return true for 'm', false otherwise
+ */
+static inline bool is_escape_seq_end(char c)
+{
+	return c == 'm';
+}
+
+/**
  * @brief Compute the length of a string taking escape sequences into account
  *
  * @param str NULL terminated string to compute the length of
@@ -59,8 +79,25 @@ static int enable_raw_mode()
 ssize_t term_strlen(const char *str)
 {
 	size_t len = 0;
-	while (*str++)
-		len++;
+
+	/* Old position before the escape sequence. -1 means "unset" */
+	ssize_t start_escape_pos = -1;
+
+	for (size_t i = 0; str[i]; i++) {
+		if (is_escape_seq(str[i])) {
+			start_escape_pos = i;
+		} else if (is_escape_seq_end(str[i])) {
+            start_escape_pos = -1;
+		} else if (start_escape_pos == -1) {
+			len++;
+		}
+	}
+
+	/* The escape sequence was unfinished. Do a normal strlen from there */
+	if (start_escape_pos != -1) {
+		for (size_t i = start_escape_pos; str[i]; i++)
+			len++;
+	}
 
 	return len;
 }
