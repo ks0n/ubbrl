@@ -1,0 +1,12 @@
+# Ignore all build-like directories (build, build-debug, build-release...)
+build*
+
+# Ignore tags
+tags
+
+# Ignore swap files
+*.swp
+
+# Ignore clangd stuff
+.clangd
+compile_commands.json
