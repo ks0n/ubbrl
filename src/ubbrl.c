@@ -80,30 +80,23 @@ ssize_t term_strlen(const char *str)
 {
 	size_t len = 0;
 
-	/* Old position before the escape sequence */
-	size_t old_iter = 0;
+	/* Old position before the escape sequence. -1 means "unset" */
+	ssize_t start_escape_pos = -1;
 
 	for (size_t i = 0; str[i]; i++) {
 		if (is_escape_seq(str[i])) {
-			/* Save the position before we try to skip anything */
-			old_iter = i;
-			do {
-				i++;
-
-				/* We reached the end of the string, restore the iterator and continue */
-				if (!str[i]) {
-					i = old_iter;
-					/* Skip over the beginning of the escape sequence */
-					len++;
-					break;
-				}
-			} while (!is_escape_seq_end(str[i]));
-
-			/* Skip the end of the escape sequence */
-			len--;
+			start_escape_pos = i;
+		} else if (is_escape_seq_end(str[i])) {
+            start_escape_pos = -1;
+		} else if (start_escape_pos == -1) {
+			len++;
 		}
+	}
 
-		len++;
+	/* The escape sequence was unfinished. Do a normal strlen from there */
+	if (start_escape_pos != -1) {
+		for (size_t i = start_escape_pos; str[i]; i++)
+			len++;
 	}
 
 	return len;
