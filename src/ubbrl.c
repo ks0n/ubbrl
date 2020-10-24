@@ -50,6 +50,26 @@ static int enable_raw_mode()
 }
 
 /**
+ * Is the character a terminal escape sequence or not
+ *
+ * @return true for '\x1B', false otherwise
+ */
+__attribute__((__always_inline__)) static inline bool is_escape_seq(char c) 
+{
+    return c == '\x1B';
+}
+
+/**
+ * Is the character the end of a terminal escape sequence or not
+ *
+ * @return true for 'm', false otherwise
+ */
+__attribute__((__always_inline__)) static inline bool is_escape_seq_end(char c) 
+{
+    return c == 'm';
+}
+
+/**
  * @brief Compute the length of a string taking escape sequences into account
  *
  * @param str NULL terminated string to compute the length of
@@ -58,11 +78,37 @@ static int enable_raw_mode()
  */
 ssize_t term_strlen(const char *str)
 {
-	size_t len = 0;
-	while (*str++)
-		len++;
+    size_t len = 0;
 
-	return len;
+    /* Old position before the escape sequence */
+    size_t old_iter = 0;
+
+    for (size_t i = 0; str[i]; i++)
+    {
+        if (is_escape_seq(str[i]))
+        {
+            old_iter = i; /* Save the position before we try to skip anything */
+            do {
+                i++;
+
+                /* We reached the end of the string, restore the iterator and continue */
+                if (!str[i])
+                {
+                    i = old_iter;
+                    /* Skip over the beginning of the escape sequence */
+                    len++;
+                    break;
+                }
+            } while (!is_escape_seq_end(str[i]));
+
+            /* Skip the end of the escape sequence */
+            len--;
+        }
+
+        len++;
+    }
+
+    return len;
 }
 
 char *ubbrl_read(char *prompt)
