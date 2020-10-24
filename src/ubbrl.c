@@ -54,9 +54,9 @@ static int enable_raw_mode()
  *
  * @return true for '\x1B', false otherwise
  */
-__attribute__((__always_inline__)) static inline bool is_escape_seq(char c) 
+__attribute__((__always_inline__)) static inline bool is_escape_seq(char c)
 {
-    return c == '\x1B';
+	return c == '\x1B';
 }
 
 /**
@@ -64,9 +64,9 @@ __attribute__((__always_inline__)) static inline bool is_escape_seq(char c)
  *
  * @return true for 'm', false otherwise
  */
-__attribute__((__always_inline__)) static inline bool is_escape_seq_end(char c) 
+__attribute__((__always_inline__)) static inline bool is_escape_seq_end(char c)
 {
-    return c == 'm';
+	return c == 'm';
 }
 
 /**
@@ -78,37 +78,35 @@ __attribute__((__always_inline__)) static inline bool is_escape_seq_end(char c)
  */
 ssize_t term_strlen(const char *str)
 {
-    size_t len = 0;
+	size_t len = 0;
 
-    /* Old position before the escape sequence */
-    size_t old_iter = 0;
+	/* Old position before the escape sequence */
+	size_t old_iter = 0;
 
-    for (size_t i = 0; str[i]; i++)
-    {
-        if (is_escape_seq(str[i]))
-        {
-            old_iter = i; /* Save the position before we try to skip anything */
-            do {
-                i++;
+	for (size_t i = 0; str[i]; i++) {
+		if (is_escape_seq(str[i])) {
+			old_iter =
+				i; /* Save the position before we try to skip anything */
+			do {
+				i++;
 
-                /* We reached the end of the string, restore the iterator and continue */
-                if (!str[i])
-                {
-                    i = old_iter;
-                    /* Skip over the beginning of the escape sequence */
-                    len++;
-                    break;
-                }
-            } while (!is_escape_seq_end(str[i]));
+				/* We reached the end of the string, restore the iterator and continue */
+				if (!str[i]) {
+					i = old_iter;
+					/* Skip over the beginning of the escape sequence */
+					len++;
+					break;
+				}
+			} while (!is_escape_seq_end(str[i]));
 
-            /* Skip the end of the escape sequence */
-            len--;
-        }
+			/* Skip the end of the escape sequence */
+			len--;
+		}
 
-        len++;
-    }
+		len++;
+	}
 
-    return len;
+	return len;
 }
 
 char *ubbrl_read(char *prompt)
