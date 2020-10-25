@@ -1,0 +1,40 @@
+name: ubbrl-build-test
+
+on:
+  push:
+      branches:
+        - main
+
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ks0n/arch_c_ci:1.0.1
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Build ubsh
+        run: |
+          meson build
+          ninja -C build
+
+  tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ks0n/arch_c_ci:1.0.1
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Run Unit Tests
+        run: |
+          meson build -Denable_tests=true
+          ninja -C build test
