@@ -1,5 +1,5 @@
 # Ignore all build-like directories (build, build-debug, build-release...)
-build*
+/build*
 
 # Ignore tags
 tags
