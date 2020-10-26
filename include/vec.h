@@ -5,11 +5,10 @@
 
 #define VEC_DEFAULT_CAP 8
 
-struct vec
-{
-    size_t size;
-    size_t cap;
-    void **items;
+struct vec {
+	size_t size;
+	size_t cap;
+	void **items;
 };
 
 struct vec *vec_create(void);
@@ -20,7 +19,7 @@ void *vec_get(struct vec *v, size_t i);
 
 static inline size_t vec_size(struct vec *v)
 {
-    return v->size;
+	return v->size;
 }
 
 #endif /* ! VEC_H */

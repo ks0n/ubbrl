@@ -87,7 +87,7 @@ ssize_t term_strlen(const char *str)
 		if (is_escape_seq(str[i])) {
 			start_escape_pos = i;
 		} else if (is_escape_seq_end(str[i])) {
-            start_escape_pos = -1;
+			start_escape_pos = -1;
 		} else if (start_escape_pos == -1) {
 			len++;
 		}
