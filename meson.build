@@ -10,6 +10,8 @@ inc = include_directories('include')
 
 src = [
   'src/ubbrl.c',
+  'src/vec.c',
+  'src/history.c',
   ]
 
 library('ubbrl', src, include_directories: inc)
