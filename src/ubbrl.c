@@ -1,12 +1,18 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#include "charstream.h"
+#include "wordvec.h"
 
 #include "ubbrl.h"
 
 static struct termios original_terminal_configuration;
-static bool raw_mode_enabled = false;
+static bool atexit_enabled = false;
+
+#define ERASE_RIGHT "\x1B[0K" /* Erase to the right on the terminal */
 
 /**
  * @brief Disable raw mode for the active terminal. Called automagically by `exit()`
@@ -17,7 +23,7 @@ static void disable_raw_mode()
 }
 
 /**
- * @brief Enable raw mode for the active terminal
+ * Enable raw mode for the active terminal. 1960 magic shit.
  *
  * @return 0 on success, -1 on error
  */
@@ -25,26 +31,34 @@ static int enable_raw_mode()
 {
 	tcgetattr(STDIN_FILENO, &original_terminal_configuration);
 
-	/* Register `disable_raw_mode` to be called upon exit */
-	atexit(disable_raw_mode);
-
 	struct termios term_mode = original_terminal_configuration;
 
-	/* Handle newlines correctly, Disable Ctrl-S and Ctrl-Q, Disable 8th bit stripping */
-	term_mode.c_iflag &= ~(ICRNL | IXON | ISTRIP);
+	if (!atexit_enabled) {
+		atexit(disable_raw_mode);
+		atexit_enabled = true;
+	}
 
-	/* Disable canonical mode, Disable Ctrl-C and Ctrl-Z since ubbrl uses them, Disable Ctrl-V */
-	term_mode.c_cflag &= ~(ICANON | ISIG | IEXTEN);
+	/* Disable break, carriage returns, newlines parity checks. No strip chars,
+     * no start/stop output control */
+	term_mode.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 
-	term_mode.c_cflag |= CS8; /* There are 8 bits in 1 char */
-	term_mode.c_oflag &= ~(OPOST); /* Turn off post transformations */
+	/* Disable post processing */
+	term_mode.c_oflag &= ~(OPOST);
+
+	/* Each char is 8bit wide */
+	term_mode.c_cflag |= (CS8);
+
+	/* Disable canonical mode, echoing, extended functions and signal characters */
+	term_mode.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+
+	/* Set return conditions thresholds */
+	term_mode.c_cc[VMIN] = 1; /* 1 byte threshold */
+	term_mode.c_cc[VTIME] = 0; /* no timer */
 
 	int status = tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_mode);
 
 	if (status)
 		return status;
-
-	raw_mode_enabled = true;
 
 	return 0;
 }
@@ -102,15 +116,84 @@ ssize_t term_strlen(const char *str)
 	return len;
 }
 
-char *ubbrl_read(char *prompt)
+enum special_chars {
+	CTRL_A = 1,
+	CTRL_B = 2,
+	CTRL_C = 3,
+	CTRL_D = 4,
+	CTRL_E = 5,
+	CTRL_F = 6,
+	CTRL_H = 8,
+	TAB = 9,
+	CTRL_K = 11,
+	CTRL_L = 12,
+	ENTER = 13,
+	CTRL_N = 14,
+	CTRL_P = 16,
+	CTRL_T = 20,
+	CTRL_U = 21,
+	CTRL_W = 23,
+	ESC = 27,
+	BACKSPACE = 127
+};
+
+static void flush_line(void)
 {
-	if (!raw_mode_enabled)
-		enable_raw_mode();
+	write(STDIN_FILENO, "\r\n", 2);
+}
 
-	size_t prompt_len = term_strlen(prompt);
+static void reset_line(char *prompt, struct wordvec *vector)
+{
+	printf("\r%s%s" ERASE_RIGHT, prompt, wordvec_chars(vector));
+}
 
-	if (fwrite(prompt, sizeof(*prompt), prompt_len, stdin) != prompt_len)
+char *ubbrl_read(char *prompt, int *status)
+{
+	if (enable_raw_mode())
 		return NULL;
 
+	struct wordvec *vector = wordvec_new();
+	struct charstream stream;
+	charstream_init(&stream, stdin);
+
+	printf("%s", prompt);
+
+	while (true) {
+		char c = charstream_read(&stream);
+
+		if (c == CHARSTREAM_EOF || c == ENTER)
+			break;
+
+		switch (c) {
+		case CTRL_C:
+			*status = UBBRL_CTRL_C;
+			goto early_return;
+		case CTRL_D:
+			*status = UBBRL_CTRL_D;
+			goto early_return;
+		case BACKSPACE:
+			wordvec_pop(vector);
+			reset_line(prompt, vector);
+			break;
+		default:
+			wordvec_append(vector, c);
+			write(STDIN_FILENO, &c, 1);
+			break;
+		}
+	}
+
+	disable_raw_mode();
+
+	flush_line();
+
+	char *ret_line = strdup(wordvec_chars(vector));
+
+	wordvec_del(vector);
+
+	return ret_line;
+
+early_return:
+	disable_raw_mode();
+	wordvec_del(vector);
 	return NULL;
 }
