@@ -14,6 +14,8 @@ src = [
   'src/charstream.c',
   'src/ubbrl.c',
   'src/wordvec.c',
+  'src/vec.c',
+  'src/history.c',
   ]
 
 main = [ 'src/main.c' ]
