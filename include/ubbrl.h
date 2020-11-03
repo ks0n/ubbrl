@@ -11,9 +11,9 @@
  */
 
 enum ubbrl_state {
-    UBBRL_CTRL_C = -2,
-    UBBRL_CTRL_D = -1,
-    UBBRL_OK = 0,
+	UBBRL_CTRL_C = -2,
+	UBBRL_CTRL_D = -1,
+	UBBRL_OK = 0,
 };
 
 /**
