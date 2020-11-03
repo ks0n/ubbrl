@@ -19,6 +19,6 @@
  *
  * @return NULL on error, the input line otherwise
  */
-const char *ubbrl_read(char *prompt);
+char *ubbrl_read(char *prompt);
 
 #endif /* ! UBBRL_H */

@@ -3,7 +3,7 @@
 
 int main(void)
 {
-	const char *line = NULL;
+	char *line = NULL;
 	while ((line = ubbrl_read("\x1B[33mubsh\x1B[0m > "))) {
 		printf("%s\n", line);
 

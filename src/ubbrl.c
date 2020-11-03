@@ -142,7 +142,7 @@ static void flush_line(void)
 	write(STDIN_FILENO, "\r\n", 2);
 }
 
-const char *ubbrl_read(char *prompt)
+char *ubbrl_read(char *prompt)
 {
 	if (enable_raw_mode())
 		return NULL;
