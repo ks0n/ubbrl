@@ -142,7 +142,12 @@ static void flush_line(void)
 	write(STDIN_FILENO, "\r\n", 2);
 }
 
-char *ubbrl_read(char *prompt)
+static void reset_line(char *prompt, struct wordvec *vector)
+{
+	printf("\r%s%s" ERASE_RIGHT, prompt, wordvec_chars(vector));
+}
+
+char *ubbrl_read(char *prompt, int *status)
 {
 	if (enable_raw_mode())
 		return NULL;
@@ -161,12 +166,14 @@ char *ubbrl_read(char *prompt)
 
 		switch (c) {
 		case CTRL_C:
-			wordvec_del(vector);
-			return NULL;
+			*status = UBBRL_CTRL_C;
+			goto early_return;
+		case CTRL_D:
+			*status = UBBRL_CTRL_D;
+			goto early_return;
 		case BACKSPACE:
 			wordvec_pop(vector);
-			printf("\r%s%s" ERASE_RIGHT, prompt,
-			       wordvec_chars(vector));
+			reset_line(prompt, vector);
 			break;
 		default:
 			wordvec_append(vector, c);
@@ -184,4 +191,9 @@ char *ubbrl_read(char *prompt)
 	wordvec_del(vector);
 
 	return ret_line;
+
+early_return:
+	disable_raw_mode();
+	wordvec_del(vector);
+	return NULL;
 }
