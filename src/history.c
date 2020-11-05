@@ -19,8 +19,6 @@ static void history_fini(void)
 	}
 
 	vec_destroy(history_lines);
-
-	// fclose(history_file);
 }
 
 int history_init(const char *filename)
@@ -61,6 +59,9 @@ const char *history_one_up(void)
 
 const char *history_one_down(void)
 {
+	if (history_current_idx == vec_size(history_lines))
+		return NULL;
+
 	history_current_idx++;
 
 	return vec_get(history_lines, history_current_idx);
