@@ -7,19 +7,20 @@
 
 static FILE *history_file;
 static struct vec *history_lines;
+static size_t history_current_idx;
 
 static void history_fini(void)
 {
 	if (history_file) {
-		for (size_t i = 0; i < history_lines->size; i++) {
+		for (size_t i = 0; i < vec_size(history_lines); i++) {
 			fprintf(history_file, "%s\n",
-				(const char *)history_lines->items[i]);
+				(char *)vec_get(history_lines, i));
 		}
 	}
 
-	fclose(history_file);
-
 	vec_destroy(history_lines);
+
+	// fclose(history_file);
 }
 
 int history_init(const char *filename)
@@ -30,7 +31,9 @@ int history_init(const char *filename)
 			return -1;
 	}
 
-	history_lines = vec_create();
+	history_lines = vec_create(sizeof(char *), free);
+	if (!history_lines)
+		return -1;
 
 	atexit(history_fini);
 
@@ -41,5 +44,29 @@ int history_append(const char *line)
 {
 	vec_push_back(history_lines, (void *)line);
 
+	history_current_idx = vec_size(history_lines);
+
 	return 0;
+}
+
+const char *history_one_up(void)
+{
+	if (history_current_idx == 0)
+		return NULL;
+
+	history_current_idx--;
+
+	return vec_get(history_lines, history_current_idx);
+}
+
+const char *history_one_down(void)
+{
+	history_current_idx++;
+
+	return vec_get(history_lines, history_current_idx);
+}
+
+void history_reset_idx(void)
+{
+	history_current_idx = vec_size(history_lines);
 }
