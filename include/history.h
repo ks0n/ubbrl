@@ -2,6 +2,7 @@
 #define HISTORY_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 /* Is the history initialized or not */
 extern bool history_initialized;
@@ -37,5 +38,15 @@ const char *history_next(void);
  * Reset the inner index that the history keeps. Call it when reading a new line
  */
 void history_reset_idx(void);
+
+/**
+ * Search through the history for a prefix
+ *
+ * @param prefix Input to search for
+ * @param len Length of the input
+ *
+ * @return The closest most recent input that match if one matches, NULL otherwise
+ */
+const char *history_search(const char *prefix, size_t len);
 
 #endif

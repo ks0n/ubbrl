@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "wordvec.h"
 
 struct wordvec *wordvec_new(void)

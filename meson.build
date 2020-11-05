@@ -7,7 +7,7 @@ project('ubbrl', 'c',
     'c_std=c99',
     ])
 
-add_project_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
+add_project_arguments(['-D_POSIX_C_SOURCE=200809L', '-D_GNU_SOURCE'], language: 'c')
 
 inc = ['include', 'src', 'subprojects/c_omponents/include']
 

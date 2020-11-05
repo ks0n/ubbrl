@@ -1,5 +1,6 @@
 #include "history.h"
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -81,4 +82,16 @@ void history_reset_idx(void)
 		return;
 
 	history_current_idx = vec_size(history_lines);
+}
+
+const char *history_search(const char *prefix, size_t len)
+{
+	for (ssize_t i = vec_size(history_lines) - 1; i >= 0; i--) {
+		const char *elt = vec_get(history_lines, i);
+
+		if (strncmp(prefix, elt, len) == 0)
+			return elt;
+	}
+
+	return NULL;
 }

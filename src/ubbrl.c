@@ -15,6 +15,7 @@ static struct termios original_terminal_configuration;
 static bool atexit_enabled = false;
 
 #define ERASE_RIGHT "\x1B[0K" /* Erase to the right on the terminal */
+#define R_SEARCH_PREFIX "(reverse-search) | "
 
 /**
  * @brief Disable raw mode for the active terminal. Called automagically by `exit()`
@@ -132,6 +133,7 @@ enum special_chars {
 	ENTER = 13,
 	CTRL_N = 14,
 	CTRL_P = 16,
+	CTRL_R = 18,
 	CTRL_T = 20,
 	CTRL_U = 21,
 	CTRL_W = 23,
@@ -176,6 +178,24 @@ static void handle_next(const char *prompt, struct wordvec **vector)
 	inner_handle_move(prompt, vector, history_next);
 }
 
+static void reverse_search(const char *prompt, struct wordvec **vector)
+{
+	char *new_prompt;
+	asprintf(&new_prompt, "%s%s", R_SEARCH_PREFIX, prompt);
+
+	reset_line(new_prompt, *vector);
+
+	const char *match =
+		history_search(wordvec_chars(*vector), wordvec_len(*vector));
+
+	if (match) {
+		wordvec_del(*vector);
+		*vector = wordvec_from(match);
+	}
+
+	free(new_prompt);
+}
+
 char *ubbrl_read(char *prompt, int *status)
 {
 	if (enable_raw_mode())
@@ -183,6 +203,7 @@ char *ubbrl_read(char *prompt, int *status)
 
 	history_reset_idx();
 
+	bool reverse_search_mode = false;
 	struct wordvec *vector = wordvec_new();
 	struct charstream stream;
 	charstream_init(&stream, stdin);
@@ -212,11 +233,17 @@ char *ubbrl_read(char *prompt, int *status)
 		case CTRL_N:
 			handle_next(prompt, &vector);
 			break;
+		case CTRL_R:
+			reverse_search_mode = true;
+			break;
 		default:
 			wordvec_append(vector, c);
 			write(STDIN_FILENO, &c, 1);
 			break;
 		}
+
+		if (reverse_search_mode)
+			reverse_search(prompt, &vector);
 	}
 
 	disable_raw_mode();
