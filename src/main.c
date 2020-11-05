@@ -1,3 +1,4 @@
+#include "history.h"
 #include "ubbrl.h"
 #include <stdio.h>
 
@@ -5,6 +6,8 @@ int main(void)
 {
 	int status = UBBRL_OK;
 	char *line = NULL;
+
+	history_init(NULL);
 
 	while (1) {
 		line = ubbrl_read("\x1B[33mubsh\x1B[0m > ", &status);

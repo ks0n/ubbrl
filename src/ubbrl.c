@@ -5,6 +5,8 @@
 #include <unistd.h>
 
 #include "charstream.h"
+#include "history.h"
+#include "vec.h"
 #include "wordvec.h"
 
 #include "ubbrl.h"
@@ -142,15 +144,44 @@ static void flush_line(void)
 	write(STDIN_FILENO, "\r\n", 2);
 }
 
-static void reset_line(char *prompt, struct wordvec *vector)
+static void reset_line(const char *prompt, struct wordvec *vector)
 {
 	printf("\r%s%s" ERASE_RIGHT, prompt, wordvec_chars(vector));
+}
+
+static void inner_handle_move(const char *prompt, struct wordvec **vector,
+			      const char *(*history_func)(void))
+{
+	if (!history_initialized)
+		return;
+
+	const char *new_input = history_func();
+	if (!new_input)
+		return;
+
+	wordvec_del(*vector);
+
+	*vector = wordvec_from(new_input);
+
+	reset_line(prompt, *vector);
+}
+
+static void handle_previous(const char *prompt, struct wordvec **vector)
+{
+	inner_handle_move(prompt, vector, history_previous);
+}
+
+static void handle_next(const char *prompt, struct wordvec **vector)
+{
+	inner_handle_move(prompt, vector, history_next);
 }
 
 char *ubbrl_read(char *prompt, int *status)
 {
 	if (enable_raw_mode())
 		return NULL;
+
+	history_reset_idx();
 
 	struct wordvec *vector = wordvec_new();
 	struct charstream stream;
@@ -175,6 +206,12 @@ char *ubbrl_read(char *prompt, int *status)
 			wordvec_pop(vector);
 			reset_line(prompt, vector);
 			break;
+		case CTRL_P:
+			handle_previous(prompt, &vector);
+			break;
+		case CTRL_N:
+			handle_next(prompt, &vector);
+			break;
 		default:
 			wordvec_append(vector, c);
 			write(STDIN_FILENO, &c, 1);
@@ -187,6 +224,9 @@ char *ubbrl_read(char *prompt, int *status)
 	flush_line();
 
 	char *ret_line = strdup(wordvec_chars(vector));
+
+	if (history_initialized)
+		history_append(strdup(wordvec_chars(vector)));
 
 	wordvec_del(vector);
 

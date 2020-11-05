@@ -19,6 +19,16 @@ struct wordvec *wordvec_new(void)
 	return wv;
 }
 
+struct wordvec *wordvec_from(const char *str)
+{
+	struct wordvec *wv = wordvec_new();
+
+	while (*str)
+		wordvec_append(wv, *str++);
+
+	return wv;
+}
+
 void wordvec_del(struct wordvec *wv)
 {
 	free(wv->vec);

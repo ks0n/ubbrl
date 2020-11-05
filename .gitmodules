@@ -1,0 +1,3 @@
+[submodule "subprojects/c_omponents"]
+	path = subprojects/c_omponents
+	url = git@github.com:ks0n/c_omponents
