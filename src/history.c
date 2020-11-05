@@ -86,6 +86,9 @@ void history_reset_idx(void)
 
 const char *history_search(const char *prefix, size_t len)
 {
+	if (len == 0)
+		return NULL;
+
 	for (ssize_t i = vec_size(history_lines) - 1; i >= 0; i--) {
 		const char *elt = vec_get(history_lines, i);
 
