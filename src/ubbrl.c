@@ -5,12 +5,15 @@
 #include <unistd.h>
 
 #include "charstream.h"
+#include "history.h"
+#include "vec.h"
 #include "wordvec.h"
 
 #include "ubbrl.h"
 
 static struct termios original_terminal_configuration;
 static bool atexit_enabled = false;
+static bool history_initialized;
 
 #define ERASE_RIGHT "\x1B[0K" /* Erase to the right on the terminal */
 
@@ -152,6 +155,13 @@ char *ubbrl_read(char *prompt, int *status)
 	if (enable_raw_mode())
 		return NULL;
 
+	if (!history_initialized) {
+		history_init(NULL); // FIXME: Don't use NULL
+		history_initialized = true;
+	}
+
+	history_reset_idx();
+
 	struct wordvec *vector = wordvec_new();
 	struct charstream stream;
 	charstream_init(&stream, stdin);
@@ -187,6 +197,7 @@ char *ubbrl_read(char *prompt, int *status)
 	flush_line();
 
 	char *ret_line = strdup(wordvec_chars(vector));
+	history_append(strdup(wordvec_chars(vector)));
 
 	wordvec_del(vector);
 
