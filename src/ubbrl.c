@@ -13,7 +13,6 @@
 
 static struct termios original_terminal_configuration;
 static bool atexit_enabled = false;
-static bool history_initialized;
 
 #define ERASE_RIGHT "\x1B[0K" /* Erase to the right on the terminal */
 
@@ -150,9 +149,12 @@ static void reset_line(const char *prompt, struct wordvec *vector)
 	printf("\r%s%s" ERASE_RIGHT, prompt, wordvec_chars(vector));
 }
 
-static void inner_handle_one_move(const char *prompt, struct wordvec **vector,
-				  const char *(*history_func)(void))
+static void inner_handle_move(const char *prompt, struct wordvec **vector,
+			      const char *(*history_func)(void))
 {
+	if (!history_initialized)
+		return;
+
 	const char *new_input = history_func();
 	if (!new_input)
 		return;
@@ -164,25 +166,20 @@ static void inner_handle_one_move(const char *prompt, struct wordvec **vector,
 	reset_line(prompt, *vector);
 }
 
-static void handle_one_up(const char *prompt, struct wordvec **vector)
+static void handle_previous(const char *prompt, struct wordvec **vector)
 {
-	inner_handle_one_move(prompt, vector, history_one_up);
+	inner_handle_move(prompt, vector, history_previous);
 }
 
-static void handle_one_down(const char *prompt, struct wordvec **vector)
+static void handle_next(const char *prompt, struct wordvec **vector)
 {
-	inner_handle_one_move(prompt, vector, history_one_down);
+	inner_handle_move(prompt, vector, history_next);
 }
 
 char *ubbrl_read(char *prompt, int *status)
 {
 	if (enable_raw_mode())
 		return NULL;
-
-	if (!history_initialized) {
-		history_init(NULL); // FIXME: Don't use NULL
-		history_initialized = true;
-	}
 
 	history_reset_idx();
 
@@ -210,10 +207,10 @@ char *ubbrl_read(char *prompt, int *status)
 			reset_line(prompt, vector);
 			break;
 		case CTRL_P:
-			handle_one_up(prompt, &vector);
+			handle_previous(prompt, &vector);
 			break;
 		case CTRL_N:
-			handle_one_down(prompt, &vector);
+			handle_next(prompt, &vector);
 			break;
 		default:
 			wordvec_append(vector, c);
@@ -227,7 +224,9 @@ char *ubbrl_read(char *prompt, int *status)
 	flush_line();
 
 	char *ret_line = strdup(wordvec_chars(vector));
-	history_append(strdup(wordvec_chars(vector)));
+
+	if (history_initialized)
+		history_append(strdup(wordvec_chars(vector)));
 
 	wordvec_del(vector);
 
